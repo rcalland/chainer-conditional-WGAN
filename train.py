@@ -34,7 +34,8 @@ def train(args):
 
     optimizer_generator = optimizers.RMSprop(lr=0.00005)
     optimizer_critic = optimizers.RMSprop(lr=0.00005)
-    optimizer_generator.setup(Generator())
+    generator = Generator()
+    optimizer_generator.setup(generator)
     optimizer_critic.setup(Critic())
 
     updater = WassersteinGANUpdater(
@@ -50,6 +51,11 @@ def train(args):
     trainer.extend(GeneratorSample(), trigger=(1, 'epoch'))
     trainer.extend(extensions.PrintReport(['epoch', 'iteration', 'critic/loss',
             'critic/loss/real', 'critic/loss/fake', 'generator/loss']))
+   # Take a snapshot at each epoch
+    trainer.extend(extensions.snapshot(filename='snapshot_epoch_{.updater.epoch}'), trigger=(1, 'epoch'))
+    trainer.extend(extensions.snapshot_object(
+    generator, 'model_epoch_{.updater.epoch}'), trigger=(1, 'epoch'))
+
     trainer.run()
 
 
