@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=10000)
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--resume', '-r', type=str, default=None)
+    parser.add_argument('--output', '-o', type=str, default='result')
     return parser.parse_args()
 
 
@@ -29,20 +30,7 @@ def train(args):
 
     # CIFAR-10 images in range [-1, 1] (tanh generator outputs)
     train, _ = datasets.get_cifar10(withlabel=True, ndim=3, scale=2)
-    #train._datasets[0] -= 1.0
-    #print(train._datasets[1].shape)
-
-    #train, _ = datasets.get_mnist(withlabel=True, ndim=3, scale=2)
-    #print(train.shape)
-
-    """
-    training_data = FlexibleImageDataset("/mnt/sakuradata2/calland/software/chainer-GTSRB/annotations/GTSRB_test.txt",
-                                        size=(32,32))
-    train = np.array([training_data.get_example(x)[0] for x in range(len(training_data._pairs))])
-    train -= 1.0
-    train *= 2
-    """
-
+    
     train_iter = iterators.SerialIterator(train, batch_size)
 
     z_iter = RandomNoiseIterator(GaussianNoiseGenerator(0, 1, args.nz),
@@ -61,9 +49,9 @@ def train(args):
         optimizer_critic=optimizer_critic,
         device=gpu)
 
-    trainer = training.Trainer(updater, stop_trigger=(epochs, 'epoch'))
+    trainer = training.Trainer(updater, stop_trigger=(epochs, 'epoch'), out=args.out)
     trainer.extend(extensions.ProgressBar())
-    trainer.extend(extensions.LogReport(trigger=(1, 'iteration')))
+    trainer.extend(extensions.LogReport(trigger=(10, 'iteration')))
     trainer.extend(GeneratorSample(), trigger=(1, 'epoch'))
     trainer.extend(extensions.PrintReport(['epoch', 'iteration', 'critic/loss',
             'critic/loss/real', 'critic/loss/fake', 'generator/loss']))
