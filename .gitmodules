@@ -1,0 +1,3 @@
+[submodule "chainer-flexible-image-dataset"]
+	path = chainer-flexible-image-dataset
+	url = https://github.com/rcalland/chainer-flexible-image-dataset.git
