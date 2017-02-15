@@ -50,16 +50,40 @@ class WassersteinGANUpdater(training.StandardUpdater):
     def z(self):
         return self._iterators['z']
 
+    def onehot(self, notonehot):
+        num_classes = 10
+        onehot = self.xp.eye(num_classes)[notonehot].astype(self.xp.float32)
+        return onehot
+
     def next_batch(self, iterator):
         batch = self.converter(iterator.next(), self.device)
-        return Variable(batch)
+
+        if len(batch) is 2:
+            batch_img = batch[0]
+            batch_lbl = batch[1]
+            #print(batch_img.shape, batch_lbl.shape)
+            #bs = len(batch[1])
+            #onehot = np.zeros((bs, num_classes))
+            #print(bs)       
+            #onehot[np.arange(bs), batch[1]] = 1
+            #print(batch[1])
+            #onehot = self.xp.eye(num_classes)[batch_lbl].astype(self.xp.float32)
+            #print(onehot)
+            #print(onehot.shape)
+            _onehot = self.onehot(batch_lbl)
+
+            return Variable(batch_img), _onehot
+        else:
+            return Variable(batch)
 
     def sample(self):
 
         """Return a sample batch of images."""
 
         z = self.next_batch(self.z)
-        x = self.generator(z, test=True)
+        l = self.xp.random.randint(10, size=self.z.batch_size)
+        l_1h = self.onehot(l)
+        x = self.generator(z, l_1h, test=True)
 
         # [-1, 1] -> [0, 1]
         x += 1.0
@@ -80,15 +104,16 @@ class WassersteinGANUpdater(training.StandardUpdater):
             self.critic.clamp()
 
             # Real images
-            x_real = self.next_batch(self.x)
-            y_real = self.critic(x_real)
+            x_real, x_label = self.next_batch(self.x)
+            x_real -= 1.0
+            y_real = self.critic(x_real, x_label)
             y_real.grad = self.xp.ones_like(y_real.data)
             _update(self.optimizer_critic, y_real)
 
             # Fake images
             z = self.next_batch(self.z)
-            x_fake = self.generator(z)
-            y_fake = self.critic(x_fake)
+            x_fake = self.generator(z, x_label)
+            y_fake = self.critic(x_fake, x_label)
             y_fake.grad = -1 * self.xp.ones_like(y_fake.data)
             _update(self.optimizer_critic, y_fake)
 
@@ -100,8 +125,12 @@ class WassersteinGANUpdater(training.StandardUpdater):
 
         # Update generator 1 time
         z = self.next_batch(self.z)
-        x_fake = self.generator(z)
-        y_fake = self.critic(x_fake)
+        # random label
+        l = self.xp.random.randint(10, size=self.z.batch_size)
+        l_1h = self.onehot(l)
+
+        x_fake = self.generator(z, l_1h)
+        y_fake = self.critic(x_fake, l_1h)
         y_fake.grad = self.xp.ones_like(y_fake.data)
         _update(self.optimizer_generator, y_fake)
 

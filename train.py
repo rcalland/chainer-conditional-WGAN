@@ -8,9 +8,6 @@ from updater import WassersteinGANUpdater
 from extensions import GeneratorSample
 from iterators import RandomNoiseIterator, GaussianNoiseGenerator
 
-from data import FlexibleImageDataset
-import numpy as np
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', type=int, default=-1)
@@ -18,6 +15,7 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=10000)
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--resume', '-r', type=str, default=None)
+    parser.add_argument('--output', '-o', type=str, default='result')
     return parser.parse_args()
 
 
@@ -28,14 +26,8 @@ def train(args):
     gpu = args.gpu
 
     # CIFAR-10 images in range [-1, 1] (tanh generator outputs)
-    #train, _ = datasets.get_cifar10(withlabel=False, ndim=3, scale=2)
-    #train -= 1.0
-
-    training_data = FlexibleImageDataset("/mnt/sakuradata2/calland/software/chainer-GTSRB/annotations/GTSRB_test.txt",
-                                        size=(32,32))
-    train = np.array([training_data.get_example(x)[0] for x in range(len(training_data._pairs))])
-    train -= 1.0
-    train *= 2
+    train, _ = datasets.get_cifar10(withlabel=True, ndim=3, scale=2)
+    
     train_iter = iterators.SerialIterator(train, batch_size)
 
     z_iter = RandomNoiseIterator(GaussianNoiseGenerator(0, 1, args.nz),
@@ -54,9 +46,9 @@ def train(args):
         optimizer_critic=optimizer_critic,
         device=gpu)
 
-    trainer = training.Trainer(updater, stop_trigger=(epochs, 'epoch'))
+    trainer = training.Trainer(updater, stop_trigger=(epochs, 'epoch'), out=args.out)
     trainer.extend(extensions.ProgressBar())
-    trainer.extend(extensions.LogReport(trigger=(1, 'iteration')))
+    trainer.extend(extensions.LogReport(trigger=(10, 'iteration')))
     trainer.extend(GeneratorSample(), trigger=(1, 'epoch'))
     trainer.extend(extensions.PrintReport(['epoch', 'iteration', 'critic/loss',
             'critic/loss/real', 'critic/loss/fake', 'generator/loss']))
