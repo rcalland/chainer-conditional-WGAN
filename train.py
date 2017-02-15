@@ -8,9 +8,6 @@ from updater import WassersteinGANUpdater
 from extensions import GeneratorSample
 from iterators import RandomNoiseIterator, GaussianNoiseGenerator
 
-from data import FlexibleImageDataset
-import numpy as np
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', type=int, default=-1)
