@@ -2,7 +2,6 @@ import chainer
 from chainer import functions as F
 from chainer import links as L
 
-
 class Generator(chainer.Chain):
 
     """(batch_size, n_z) -> (batch_size, 3, 32, 32)"""
@@ -18,7 +17,8 @@ class Generator(chainer.Chain):
             bn_dc3=L.BatchNormalization(64)
         )
 
-    def __call__(self, z, test=False):
+    def __call__(self, z, label, test=False):
+        z = F.concat([z, label], axis=1)
         h = F.reshape(z, (z.shape[0], -1, 1, 1))
         h = F.relu(self.bn_dc1(self.dc1(h), test=test))
         h = F.relu(self.bn_dc2(self.dc2(h), test=test))
@@ -33,7 +33,7 @@ class Critic(chainer.Chain):
 
     def __init__(self):
         super().__init__(
-            c0=L.Convolution2D(3, 64, 4, stride=2, pad=1, nobias=True),
+            c0=L.Convolution2D(None, 64, 4, stride=2, pad=1, nobias=True),
             c1=L.Convolution2D(64, 128, 4, stride=2, pad=1, nobias=True),
             c2=L.Convolution2D(128, 256, 4, stride=2, pad=1, nobias=True),
             c3=L.Convolution2D(256, 1, 4, stride=1, pad=0, nobias=True),
@@ -50,8 +50,17 @@ class Critic(chainer.Chain):
             params_clipped = F.clip(params, lower, upper)
             params.data = params_clipped.data
 
-    def __call__(self, x, test=False):
+    def __call__(self, x, label, test=False):
+        #(x.shape, label.shape)
+        # turn onehot vector into a 3D block      
+        # see figure 3 from:
+        # https://arxiv.org/pdf/1611.06355.pdf
+        label = self.xp.stack([label] * x.shape[2], 2)
+        label = self.xp.stack([label] * x.shape[3], 3)
+
+        h = F.concat([x, label])
         h = F.leaky_relu(self.c0(x))
+        #print(h.shape)
         h = F.leaky_relu(self.bn_c1(self.c1(h), test=test))
         h = F.leaky_relu(self.bn_c2(self.c2(h), test=test))
         h = self.c3(h)
