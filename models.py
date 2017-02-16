@@ -34,9 +34,9 @@ class Critic(chainer.Chain):
     def __init__(self):
         super().__init__(
             c0=L.Convolution2D(None, 64, 4, stride=2, pad=1, nobias=True),
-            c1=L.Convolution2D(64, 128, 4, stride=2, pad=1, nobias=True),
-            c2=L.Convolution2D(128, 256, 4, stride=2, pad=1, nobias=True),
-            c3=L.Convolution2D(256, 1, 4, stride=1, pad=0, nobias=True),
+            c1=L.Convolution2D(None, 128, 4, stride=2, pad=1, nobias=True),
+            c2=L.Convolution2D(None, 256, 4, stride=2, pad=1, nobias=True),
+            c3=L.Convolution2D(None, 1, 4, stride=1, pad=0, nobias=True),
             bn_c1=L.BatchNormalization(128),
             bn_c2=L.BatchNormalization(256)
         )
@@ -55,12 +55,14 @@ class Critic(chainer.Chain):
         # turn onehot vector into a 3D block      
         # see figure 3 from:
         # https://arxiv.org/pdf/1611.06355.pdf
-        label = self.xp.stack([label] * x.shape[2], 2)
-        label = self.xp.stack([label] * x.shape[3], 3)
-
-        h = F.concat([x, label])
+  
         h = F.leaky_relu(self.c0(x))
         #print(h.shape)
+        label = self.xp.stack([label] * h.shape[2], 2)
+        label = self.xp.stack([label] * h.shape[3], 3)
+
+        h = F.concat([h, label])
+
         h = F.leaky_relu(self.bn_c1(self.c1(h), test=test))
         h = F.leaky_relu(self.bn_c2(self.c2(h), test=test))
         h = self.c3(h)
